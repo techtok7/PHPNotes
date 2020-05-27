@@ -50,10 +50,16 @@ if (isset($_POST["update"])) {
                                 </div>
                             </div>
                         </form>
-                <?php
+                    <?php
                     } else {
+                    ?>
+                        <h1>Invalid Action Click <a href="index.php">Here</a></h1>
+                    <?php
                     }
                 } else {
+                    ?>
+                    <h1>Invalid Action Click <a href="index.php">Here</a></h1>
+                <?php
                 }
                 ?>
 
