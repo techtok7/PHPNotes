@@ -1,11 +1,12 @@
 <?php
+// Error Solved
 session_start();
 $con = mysqli_connect("localhost", "techtok7", "", "demo") or die("Can't Connect");
 
 // Signup
 if (isset($_POST["signup"])) {
-	$username = $_POST["username"];
-	$password = $_POST["password"];
+	$username = mysqli_real_escape_string($con, $_POST["username"]);
+	$password = mysqli_real_escape_string($con, $_POST["password"]);
 	$qry = "INSERT INTO `user`(`user_id`, `user_name`, `user_password`) VALUES (NULL, '$username', '$password')";
 	if (mysqli_query($con, $qry)) {
 		$_SESSION["msg"] = "Signup Successfully";
@@ -18,8 +19,8 @@ if (isset($_POST["signup"])) {
 
 // Login 
 if (isset($_POST["login"])) {
-	$username = $_POST["username"];
-	$password = $_POST["password"];
+	$username = mysqli_real_escape_string($con, $_POST["username"]);
+	$password = mysqli_real_escape_string($con, $_POST["password"]);
 	$qry = "SELECT * FROM `user` WHERE `user_name` = '$username' AND `user_password` = '$password'";
 	$result = mysqli_query($con, $qry);
 	if ($row = mysqli_fetch_assoc($result)) {
@@ -41,11 +42,11 @@ if (isset($_GET["logout"])) {
 
 // Add
 if (isset($_POST["add"])) {
-	print_r($_POST);
 	$user_id = $_SESSION["user_id"];
-	$title = $_POST["title"];
-	$dis = $_POST["dis"];
-	$qry = "INSERT INTO `note`(`note_id`, `note_user`, `note_title`, `note_dis`) VALUES (NULL, '$user_id', '$title', '$dis')";
+	$users = mysqli_real_escape_string($con, json_encode($_POST["users"]));
+	$title = mysqli_real_escape_string($con, $_POST["title"]);
+	$dis = mysqli_real_escape_string($con, $_POST["dis"]);
+	$qry = "INSERT INTO `note`(`note_id`, `note_user`, `note_title`, `note_dis`, `note_users`) VALUES (NULL, '$user_id', '$title', '$dis', '$users')";
 	if (mysqli_query($con, $qry)) {
 		$_SESSION["msg"] = "Note Added";
 		header('location:index.php');
@@ -58,21 +59,33 @@ if (isset($_POST["add"])) {
 // Update
 if (isset($_POST["update"])) {
 	$user_id = $_SESSION["user_id"];
-	$note_id = $_POST["note_id"];
-	$title = $_POST["title"];
-	$dis = $_POST["dis"];
-	$qry = "UPDATE `note` SET `note_title` = '$title', `note_dis` = '$dis' WHERE `note_id` = '$note_id' AND `note_user` = '$user_id'";
-	if (mysqli_query($con, $qry)) {
-		$_SESSION["msg"] = "Note Updated";
-		header('location:index.php');
+	$note_id = mysqli_real_escape_string($con, $_POST["note_id"]);
+	$q = "SELECT * FROM `note` WHERE `note_id` = '$note_id'";
+	$res = mysqli_query($con, $q);
+	if ($row = mysqli_fetch_assoc($res)) {
+		$title = mysqli_real_escape_string($con, $_POST["title"]);
+		$dis = mysqli_real_escape_string($con, $_POST["dis"]);
+		if ($row["note_user"] == $_SESSION["user_id"]) {
+			$users = mysqli_real_escape_string($con, json_encode($_POST["users"]));
+			$qry = "UPDATE `note` SET `note_title` = '$title', `note_dis` = '$dis', `note_users` = '$users' WHERE `note_id` = '$note_id' AND `note_user` = '$user_id'";
+		} else {
+			$qry = "UPDATE `note` SET `note_title` = '$title', `note_dis` = '$dis' WHERE `note_id` = '$note_id' AND `note_users` LIKE '%\"$user_id\"%'";
+		}
+		if (mysqli_query($con, $qry)) {
+			$_SESSION["msg"] = "Note Updated";
+			header('location:index.php');
+		} else {
+			$_SESSION["msg"] = "Error";
+			header('location:index.php');
+		}
 	} else {
-		$_SESSION["msg"] = "Error";
+		$_SESSION["msg"] = "Invalid Action";
 		header('location:index.php');
 	}
 }
 // Delete
 if (isset($_GET["delete"])) {
-	$note_id = $_GET["delete"];
+	$note_id = mysqli_real_escape_string($con, $_GET["delete"]);
 	$user_id = $_SESSION["user_id"];
 	$qry = "DELETE FROM `note` WHERE `note_id` = '$note_id' AND `note_user` = '$user_id'";
 	if (mysqli_query($con, $qry)) {
@@ -84,12 +97,12 @@ if (isset($_GET["delete"])) {
 	}
 }
 
-
+// Authorized User Can't Change Authorization
 // ==================================
 if (isset($_GET["edit"])) {
-	$id = $_GET["edit"];
+	$id = mysqli_real_escape_string($con, $_GET["edit"]);
 	$user_id = $_SESSION["user_id"];
-	$qry = "SELECT * FROM `note` WHERE `note_id` = '$id' AND `note_user` = '$user_id'";
+	$qry = "SELECT * FROM `note` WHERE `note_id` = '$id' AND (`note_user` = '$user_id' OR  `note_users` LIKE '%\"$user_id\"%')";
 	$result = mysqli_query($con, $qry);
 	if ($note = mysqli_fetch_assoc($result)) {
 	} else {
@@ -123,7 +136,7 @@ if (isset($_GET["edit"])) {
 				<span class="navbar-toggler-icon"></span>
 			</button>
 			<div class="collapse navbar-collapse" id="navbarTogglerDemo01">
-				<a class="navbar-brand" href="#"><b>PHP Notes-2</b></a>
+				<a class="navbar-brand" href="index.php"><b>PHP Notes-3</b></a>
 				<ul class="navbar-nav ml-auto mt-2 mt-lg-0">
 					<?php
 					if (isset($_SESSION["user_id"])) {
@@ -177,6 +190,30 @@ if (isset($_GET["edit"])) {
 											<label><b>Note Discription :</b></label>
 											<textarea name="dis" class="form-control" rows="5"><?php echo $note["note_dis"]; ?></textarea>
 										</div>
+										<?php
+										if ($note["note_user"] == $_SESSION["user_id"]) {
+										?>
+											<div class="form-group mt-3">
+												<label><b>Authorized Users</b></label>
+												<select name="users[]" class="form-control" multiple>
+													<?php
+													$users = json_decode($note["note_users"], true);
+													$user_id = $_SESSION["user_id"];
+													$q = "SELECT * FROM `user` WHERE `user_id` != '$user_id'";
+													$res = mysqli_query($con, $q);
+													while ($user = mysqli_fetch_assoc($res)) {
+													?>
+														<option value="<?php echo $user["user_id"]; ?>" <?php if (in_array($user["user_id"], $users)) {
+																											echo "selected";
+																										} ?>><?php echo $user["user_name"]; ?></option>
+													<?php
+													}
+													?>
+												</select>
+											</div>
+										<?php
+										}
+										?>
 									</div>
 									<div class="card-footer">
 										<input type="submit" class="btn btn-success" name="update" value="Update Note">
@@ -201,6 +238,21 @@ if (isset($_GET["edit"])) {
 											<label><b>Note Discription :</b></label>
 											<textarea name="dis" class="form-control" rows="5"></textarea>
 										</div>
+										<div class="form-group mt-3">
+											<label><b>Authorized Users</b></label>
+											<select name="users[]" class="form-control" multiple>
+												<?php
+												$user_id = $_SESSION["user_id"];
+												$q = "SELECT * FROM `user` WHERE `user_id` != '$user_id'";
+												$res = mysqli_query($con, $q);
+												while ($user = mysqli_fetch_assoc($res)) {
+												?>
+													<option value="<?php echo $user["user_id"]; ?>"><?php echo $user["user_name"]; ?></option>
+												<?php
+												}
+												?>
+											</select>
+										</div>
 									</div>
 									<div class="card-footer">
 										<input type="submit" class="btn btn-success" name="add" value="Add Note">
@@ -212,21 +264,38 @@ if (isset($_GET["edit"])) {
 							<div class="row">
 								<?php
 								$user_id = $_SESSION["user_id"];
-								$qry = "SELECT * FROM `note` WHERE `note_user` = '$user_id'";
+								$qry = "SELECT * FROM `note` WHERE `note_user` = $user_id OR `note_users` LIKE '%\"$user_id\"%'";
 								$result = mysqli_query($con, $qry);
 								while ($note = mysqli_fetch_assoc($result)) {
 								?>
-									<div class="col-3 ">
+									<div class="col-3 mb-4">
 										<div class="card h-100">
 											<div class="card-header">
-												<?php echo $note["note_title"]; ?>
+												<?php echo htmlspecialchars($note["note_title"]); ?>
+												<?php
+													if($note["note_user"] != $_SESSION["user_id"])
+													{
+														echo "<br>";
+														$ui = $note["note_user"];
+														$t = "SELECT `user_name` FROM `user` WHERE `user_id` = '$ui'";
+														$re = mysqli_query($con,$t);
+														$ur = mysqli_fetch_row($re);
+														echo "Author : " . $ur[0];
+													}
+												?>
 											</div>
 											<div class="card-body">
-												<?php echo $note["note_dis"]; ?>
+												<?php echo htmlspecialchars($note["note_dis"]); ?>
 											</div>
 											<div class="card-footer">
 												<a href="index.php?edit=<?php echo $note["note_id"]; ?>"><button class="btn btn-success">Edit</button></a>
-												<a href="index.php?delete=<?php echo $note["note_id"]; ?>"><button class="btn btn-success ml-3">Delete</button></a>
+												<?php
+												if ($note["note_user"] == $_SESSION["user_id"]) {
+												?>
+													<a href="index.php?delete=<?php echo $note["note_id"]; ?>"><button class="btn btn-success ml-3">Delete</button></a>
+												<?php
+												}
+												?>
 											</div>
 										</div>
 									</div>
