@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"css.remoteStyleSheets": [
+			"https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/css/bootstrap.min.css",
+		],
+		"liveServer.settings.useWebExt": true,
+		"liveServer.settings.proxy": {
+			"enable": true,
+			"baseUri": "/",
+			"proxyUri": "http://localhost/"
+		},
+		"liveServer.settings.multiRootWorkspaceName": "PHPNotes"
+	}
+}
